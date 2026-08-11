@@ -1,0 +1,76 @@
+/* ============================================================
+   LinkedSpace – styles.css
+
+   CSS handles only the outer scaffold layer.
+   All inner messaging panel expansion is done via JavaScript
+   in content.js (direct inline style injection) because
+   LinkedIn's class names rotate and its React tree can override
+   CSS with inline styles.
+
+   Two scoping classes set by content.js:
+     html.lcs-messaging → on /messaging dedicated page
+     html.lcs-active    → on any page with a messaging element
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   1. Scaffold outer wrapper – messaging page only
+   Remove fixed max-width so the page fills the viewport.
+   (JS also sets these as inline styles for extra specificity)
+   ---------------------------------------------------------- */
+
+html.lcs-messaging .scaffold-layout,
+html.lcs-messaging .scaffold-layout-container,
+html.lcs-messaging .scaffold-layout-container--reflow,
+html.lcs-messaging .scaffold-layout__content-container {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Main content column grows to fill space freed by the aside */
+html.lcs-messaging .scaffold-layout__main {
+  max-width: 100% !important;
+  width: 100% !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Collapse the right ads/recommendations aside */
+html.lcs-messaging .scaffold-layout__aside {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  flex: 0 0 0px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+}
+
+/* ----------------------------------------------------------
+   2. Overlay bubble – width on non-messaging pages
+   Only lcs-active is set here; the aside is untouched.
+   ---------------------------------------------------------- */
+
+html.lcs-active .msg-overlay-list-bubble,
+html.lcs-active [class*="msg-overlay-list-bubble"] {
+  width: min(720px, calc(100vw - 90px)) !important;
+  max-width: calc(100vw - 90px) !important;
+}
+
+/* ----------------------------------------------------------
+   3. Smooth micro-animation for new messages
+   ---------------------------------------------------------- */
+
+html.lcs-messaging .msg-s-event-listitem {
+  animation: lcs-fadeSlide 0.18s ease both !important;
+}
+
+@keyframes lcs-fadeSlide {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

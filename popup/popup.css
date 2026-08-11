@@ -1,0 +1,303 @@
+/* ============================================================
+   LinkedSpace – popup.css
+   Premium dark glassmorphism popup UI
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-base:      #0d1117;
+  --bg-surface:   #161b22;
+  --bg-elevated:  #1c2333;
+  --bg-hover:     #21262d;
+  --border:       #30363d;
+  --text-primary: #e6edf3;
+  --text-muted:   #8b949e;
+  --accent:       #00D4C8;
+  --accent-dim:   rgba(0, 212, 200, 0.12);
+  --accent-glow:  rgba(0, 212, 200, 0.25);
+  --success:      #3fb950;
+  --radius-sm:    6px;
+  --radius-md:    10px;
+  --transition:   0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html, body {
+  width: 320px;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Wrapper ---- */
+.popup-wrapper {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  min-height: 240px;
+}
+
+/* ---- Header ---- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.app-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.app-version {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ---- Status Card ---- */
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition);
+}
+
+.status-card.active {
+  border-color: rgba(63, 185, 80, 0.4);
+  background: rgba(63, 185, 80, 0.06);
+}
+
+.status-card.inactive {
+  border-color: var(--border);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+  transition: background var(--transition);
+}
+
+.status-card.active .status-dot {
+  background: var(--success);
+  box-shadow: 0 0 6px rgba(63, 185, 80, 0.5);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.status-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.status-card.active .status-text {
+  color: var(--success);
+}
+
+/* ---- Control Row (toggle) ---- */
+.control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.control-row:hover {
+  border-color: rgba(0, 212, 200, 0.3);
+  background: var(--bg-elevated);
+}
+
+.control-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.control-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.control-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ---- Toggle Switch ---- */
+.toggle {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  height: 22px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.toggle input:checked ~ .toggle-track {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.toggle-thumb {
+  position: absolute;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: transform var(--transition), background var(--transition);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.toggle input:checked ~ .toggle-track .toggle-thumb {
+  transform: translateX(18px);
+  background: #0d1117;
+}
+
+.toggle:focus-within .toggle-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- Feature Pills ---- */
+.features {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.feature-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(0, 212, 200, 0.2);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.2px;
+}
+
+.feature-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+/* ---- Divider ---- */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0 -4px;
+}
+
+/* ---- Open LinkedIn Button ---- */
+.open-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: linear-gradient(135deg, var(--accent) 0%, #0097A7 100%);
+  color: #0d1117;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+  box-shadow: 0 2px 12px var(--accent-glow);
+}
+
+.open-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px var(--accent-glow);
+}
+
+.open-btn:active {
+  transform: translateY(0);
+}
+
+.open-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ---- Footer ---- */
+.footer {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+  padding-top: 2px;
+  opacity: 0.7;
+}
+
