@@ -61,7 +61,20 @@ html.lcs-messaging .scaffold-layout__row[class*="--list-detail-aside"] {
 }
 
 /* ----------------------------------------------------------
-   2. Smooth micro-animation for new messages
+   2. Keeps the composer (message input) visible while scrolling.
+   LinkedIn pins the composer by constraining the thread column's height
+   and letting only the message list scroll. This permits the list region
+   to shrink within that column instead of growing the whole column — min
+   sizes are lifted, never forced. (JS mirrors this as inline styles.)
+   ---------------------------------------------------------- */
+
+html.lcs-messaging .msg-s-message-list-container {
+  min-height: 0 !important;
+  min-width: 0 !important;
+}
+
+/* ----------------------------------------------------------
+   3. Smooth micro-animation for new messages
    ---------------------------------------------------------- */
 
 /* Scope to the dedicated messaging panel only: the floating chat-bubble popup
