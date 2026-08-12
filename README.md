@@ -8,8 +8,11 @@
 
 ## Features
 
-- **Full-Width Messaging** – Removes LinkedIn's cramped width constraints on the `/messaging` page and the overlay chat bubble.
-- **Both-Sides Expansion** – Collapses unnecessary sidebars to maximize messaging area while keeping left thread list comfortably sized.
+- **Full-Width Messaging** – Removes LinkedIn's cramped width constraints on the `/messaging` page.
+- **Both-Sides Expansion** – Collapses unnecessary sidebars to maximize messaging area while keeping the left thread list comfortably sized.
+- **Adaptive Conversation List** – The left pane scales with your screen (between 1/6 and 1/3 of viewport, capped at 400px) and re-adapts live on resize.
+- **Overlay Bubble Untouched** – The floating chat bubble on other LinkedIn pages keeps its native behavior.
+- **Console Quiet** – Blocks LinkedIn's `chrome-extension://invalid/` fingerprinting flood that spams the DevTools console on every pageview.
 - **Auto-Apply** – Activates instantly when you open LinkedIn messaging. No extra clicks needed.
 - **SPA-Resilient** – A `MutationObserver` watches for LinkedIn's React re-renders and reapplies layout styles automatically.
 - **Master Toggle** – Toolbar popup with a clean ON/OFF switch lets you pause the extension anytime.

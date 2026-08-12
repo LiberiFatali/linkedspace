@@ -1,11 +1,10 @@
 /**
  * LinkedSpace – content.js
  *
- * Expands LinkedIn's messaging interface to full-width on both sides.
+ * Expands LinkedIn's dedicated /messaging page to full-width on both sides.
+ * The floating chat overlay bubble is intentionally left untouched.
  *
- * Two CSS classes are applied to <html>:
- *   lcs-active    → any LinkedIn page that contains a messaging element
- *                   (e.g. overlay chat bubble on non-messaging pages)
+ * One CSS class class is applied to <html>:
  *   lcs-messaging → only on /messaging dedicated page
  *                   (safe to collapse the right aside here)
  *
@@ -17,23 +16,29 @@
 
 'use strict';
 
-const LCS_CLASS       = 'lcs-active';
 const LCS_MSG_CLASS   = 'lcs-messaging';
 const LCS_STORAGE_KEY = 'lcsEnabled';
 
-/** Selectors indicating a messaging element exists on any LinkedIn page. */
-const OVERLAY_SELECTORS = [
-  '.msg-overlay-list-bubble',
-  '.msg-overlay-bubble-header',
-  '[data-view-name*="messaging"]',
-  '[id*="msg-overlay"]',
-];
+/** Conversation list width — "just a bit wider" than LinkedIn's original,
+ *  adaptive to the viewport between 1/6 and 1/3, capped at 400px. */
+const SIDEBAR_MAX_PX       = 400; // cap on wide screens
+const SIDEBAR_ADAPTIVE_N   = 1;   // adaptive fraction (1/3 of viewport)
+const SIDEBAR_ADAPTIVE_D   = 3;
+const SIDEBAR_FLOOR_N      = 1;   // hard floor (1/6 of viewport)
+const SIDEBAR_FLOOR_D      = 6;
+
+function sidebarWidth() {
+  return Math.min(SIDEBAR_MAX_PX,
+    Math.max(Math.round(window.innerWidth * SIDEBAR_ADAPTIVE_N / SIDEBAR_ADAPTIVE_D),
+             Math.round(window.innerWidth * SIDEBAR_FLOOR_N / SIDEBAR_FLOOR_D)));
+}
 
 /** Top-level outer wrapper selectors for the messaging panel. */
 const OUTER_MSG_SELECTORS = [
-  '.msg-conversations-container',
+  '.scaffold-layout__list-detail',
+  '.msg__list-detail',
+  '.scaffold-layout__main',
   '.msg-s-page-layout',
-  '[class*="msg-conversations-container"]',
   '[class*="msg-s-page-layout"]',
 ];
 
@@ -53,11 +58,6 @@ const THREAD_SELECTORS = [
 
 function isMessagingPage() {
   return window.location.pathname.startsWith('/messaging');
-}
-
-function hasMessagingElement() {
-  if (isMessagingPage()) return true;
-  return OVERLAY_SELECTORS.some(sel => document.querySelector(sel) !== null);
 }
 
 /**
@@ -87,8 +87,9 @@ function expandScaffold() {
     });
   });
 
-  // Main content column — grows to fill space freed by collapsing the aside
-  const main = document.querySelector('.scaffold-layout__main');
+  // Main content column — grows to fill space freed by collapsing the aside.
+  // On the current UI the <main> element itself is the list-detail container.
+  const main = document.querySelector('.scaffold-layout__list-detail, .msg__list-detail, .scaffold-layout__main');
   forceStyle(main, 'max-width', '100%');
   forceStyle(main, 'width', '100%');
   forceStyle(main, 'flex', '1 1 auto');
@@ -109,7 +110,20 @@ function expandScaffold() {
 
   // The messaging row is a CSS Grid that reserves a fixed track for the right
   // aside. Zeroing the aside's width can't collapse a fixed grid track, so
-  // rewrite the row's grid-template-columns to a single full-width column.
+  // force the row to a single full-width column whenever the aside shares a
+  // grid parent with the messaging main column.
+  if (main && aside && main.parentElement === aside.parentElement) {
+    const parent = main.parentElement;
+    const display = getComputedStyle(parent).display;
+    if (display === 'grid' || display === 'inline-grid') {
+      forceStyle(parent, 'grid-template-columns', 'minmax(0, 1fr)');
+      forceStyle(parent, 'column-gap', '0');
+    } else {
+      forceStyle(parent, 'display', 'flex');
+    }
+  }
+
+  // Legacy layout: the messaging row carries a --list-detail-aside modifier
   document.querySelectorAll('.scaffold-layout__row[class*="--list-detail-aside"]').forEach(el => {
     forceStyle(el, 'grid-template-columns', 'minmax(0, 1fr)');
     forceStyle(el, 'column-gap', '0');
@@ -119,9 +133,9 @@ function expandScaffold() {
 /* ─── messaging panel expansion ──────────────────────────── */
 
 /**
- * Expand the messaging containers using direct DOM traversal.
- * Does NOT force a width on the sidebar — it keeps its natural size.
- * The thread panel is given flex: 1 1 auto so it fills remaining space.
+ * Expand the messaging panel using direct DOM traversal.
+ * The conversation list (left sidebar) is pinned to a viewport-adaptive width
+ * (see sidebarWidth) and the thread panel grows to fill the remaining space.
  *
  * Retries up to `maxRetries` times if the panel hasn't rendered yet.
  */
@@ -138,7 +152,7 @@ function expandMessagingPanel(attempt = 0) {
 
   // Fallback: first child of scaffold main
   if (!outerWrapper) {
-    const main = document.querySelector('.scaffold-layout__main');
+    const main = document.querySelector('.scaffold-layout__main, .scaffold-layout__list-detail');
     outerWrapper = main?.firstElementChild ?? null;
   }
 
@@ -149,34 +163,72 @@ function expandMessagingPanel(attempt = 0) {
     return;
   }
 
-  // Expand the outer wrapper
+  // Outer wrapper fills the full width
   forceStyle(outerWrapper, 'max-width', '100%');
   forceStyle(outerWrapper, 'width', '100%');
-  forceStyle(outerWrapper, 'flex', '1 1 auto');
   forceStyle(outerWrapper, 'min-width', '0');
-  forceStyle(outerWrapper, 'display', 'flex');
 
-  // Distribute space among direct children:
-  //   First child (narrow, < 400px) → sidebar, keep its natural width
-  //   Remaining children            → thread panel(s), grow to fill
-  Array.from(outerWrapper.children).forEach((child, i) => {
-    const rect = child.getBoundingClientRect();
-    const isSidebar = i === 0 && rect.width > 0 && rect.width < 400;
+  const sidebar = sidebarWidth();
 
-    if (isSidebar) {
-      forceStyle(child, 'flex', '0 0 auto');
-      forceStyle(child, 'min-width', '0');
+  // The list|detail split: locate the container that actually holds both
+  // columns (on the current UI <main> itself is that container).
+  const listCol = document.querySelector('.scaffold-layout__list');
+  const detailCol = document.querySelector('.scaffold-layout__detail');
+  let split = null;
+  if (listCol && detailCol && listCol.parentElement === detailCol.parentElement) {
+    split = listCol.parentElement;
+  } else if (listCol) {
+    split = listCol.parentElement;
+  }
+
+  if (split) {
+    forceStyle(split, 'width', '100%');
+    forceStyle(split, 'max-width', '100%');
+    forceStyle(split, 'min-width', '0');
+    forceStyle(split, 'column-gap', '0');
+    forceStyle(split, 'row-gap', '0');
+
+    const display = getComputedStyle(split).display;
+    const extraChildren = Array.from(split.children).filter(c => c !== listCol && c !== detailCol);
+    const pureSplit = extraChildren.length === 0;
+
+    if (pureSplit && (display === 'grid' || display === 'inline-grid')) {
+      forceStyle(split, 'grid-template-columns', `minmax(0, ${sidebar}px) minmax(0, 1fr)`);
+      forceStyle(split, 'grid-template-rows', 'minmax(0, 1fr)');
     } else {
-      forceStyle(child, 'flex', '1 1 auto');
-      forceStyle(child, 'max-width', '100%');
-      forceStyle(child, 'min-width', '0');
-      forceStyle(child, 'width', '100%');
+      forceStyle(split, 'display', 'flex');
+      if (listCol) {
+        forceStyle(listCol, 'flex', `0 0 ${sidebar}px`);
+        forceStyle(listCol, 'width', `${sidebar}px`);
+        forceStyle(listCol, 'max-width', `${sidebar}px`);
+        forceStyle(listCol, 'min-width', '0');
+      }
+      if (detailCol) {
+        forceStyle(detailCol, 'flex', '1 1 0');
+        forceStyle(detailCol, 'width', 'auto');
+        forceStyle(detailCol, 'max-width', '100%');
+        forceStyle(detailCol, 'min-width', '0');
+      }
     }
+  }
+
+  // Inner conversation list fills the list column. Never pinned directly here:
+  // its header and list rows share a `msg-conversations-container*` prefix, so
+  // a substring pin would conflict with itself.
+  // Styling is scoped to the dedicated panel (outerWrapper): the floating
+  // chat-bubble popup shares the same `msg-*` class names, and forcing
+  // width:100% on it is what widened the bubble's popup.
+  outerWrapper.querySelectorAll('.msg-conversations-container, .msg-s-page-layout__conversations-container').forEach(el => {
+    if (el.closest('[class*="msg-overlay"]')) return;
+    forceStyle(el, 'width', '100%');
+    forceStyle(el, 'max-width', '100%');
+    forceStyle(el, 'min-width', '0');
   });
 
   // Drill into any inner thread containers that carry their own width constraints
   THREAD_SELECTORS.forEach(sel => {
-    document.querySelectorAll(sel).forEach(el => {
+    outerWrapper.querySelectorAll(sel).forEach(el => {
+      if (el.closest('[class*="msg-overlay"]')) return;
       forceStyle(el, 'max-width', '100%');
       forceStyle(el, 'width', '100%');
       forceStyle(el, 'flex', '1 1 auto');
@@ -191,7 +243,7 @@ function applyState(enabled) {
   const html = document.documentElement;
 
   if (!enabled) {
-    html.classList.remove(LCS_CLASS, LCS_MSG_CLASS);
+    html.classList.remove(LCS_MSG_CLASS);
     return;
   }
 
@@ -201,12 +253,6 @@ function applyState(enabled) {
     expandMessagingPanel(); // retries internally until DOM is ready
   } else {
     html.classList.remove(LCS_MSG_CLASS);
-  }
-
-  if (hasMessagingElement()) {
-    html.classList.add(LCS_CLASS);
-  } else {
-    html.classList.remove(LCS_CLASS);
   }
 }
 
@@ -229,6 +275,12 @@ const observer = new MutationObserver(() => {
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
+
+// Re-adapt the conversation-list width when the window is resized
+window.addEventListener('resize', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => applyState(currentEnabled), 200);
+});
 
 /* ─── popup message handler ───────────────────────────────── */
 
