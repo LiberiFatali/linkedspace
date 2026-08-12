@@ -106,6 +106,14 @@ function expandScaffold() {
   forceStyle(aside, 'padding', '0');
   forceStyle(aside, 'margin', '0');
   forceStyle(aside, 'border', 'none');
+
+  // The messaging row is a CSS Grid that reserves a fixed track for the right
+  // aside. Zeroing the aside's width can't collapse a fixed grid track, so
+  // rewrite the row's grid-template-columns to a single full-width column.
+  document.querySelectorAll('.scaffold-layout__row[class*="--list-detail-aside"]').forEach(el => {
+    forceStyle(el, 'grid-template-columns', 'minmax(0, 1fr)');
+    forceStyle(el, 'column-gap', '0');
+  });
 }
 
 /* ─── messaging panel expansion ──────────────────────────── */

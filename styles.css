@@ -51,6 +51,14 @@ html.lcs-messaging .scaffold-layout__aside {
   border: none !important;
 }
 
+/* The messaging row is a CSS Grid whose grid-template-columns reserves a fixed
+   track for the right aside. Zeroing the aside's width can't collapse a fixed
+   grid track, so squeeze the row into a single full-width column to reclaim it. */
+html.lcs-messaging .scaffold-layout__row[class*="--list-detail-aside"] {
+  grid-template-columns: minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+}
+
 /* ----------------------------------------------------------
    2. Overlay bubble – width on non-messaging pages
    Only lcs-active is set here; the aside is untouched.
