@@ -20,4 +20,14 @@ yarn-error.log*
 
 # Antigravity / Brain logs
 .system_generated/
+
+# Secrets / credentials
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.p12
+credentials*
+secrets.*
 EOF
