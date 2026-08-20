@@ -1,13 +1,18 @@
 /**
  * LinkedSpace – content.js
  *
- * Expands LinkedIn's dedicated /messaging page to full-width on both sides.
+ * Expands LinkedIn's main pages to full-width:
+ *   • /messaging      (dedicated messaging page)
+ *   • /feed or /      (Home feed — right rail kept, everything widens)
+ *   • /mynetwork      (right rail collapsed)
+ *   • /notifications  (right rail collapsed)
+ *   • /jobs           (dedicated multi-pane expansion)
  * The floating chat overlay bubble is intentionally left untouched.
  *
- * One CSS class is applied to <html>:
- *   lcs-messaging → only on /messaging once the real messaging UI has mounted
- *                   (never during the SPA "Navigating to Messaging" splash —
- *                   styling the splash shell stalls LinkedIn's microapp boot)
+ * One CSS class is applied to <html> per active page:
+ *   lcs-messaging / lcs-home / lcs-network / lcs-jobs / lcs-notifications
+ * Classes are only applied once the page's real DOM has mounted (never during
+ * an SPA splash — styling the splash shell stalls LinkedIn's microapp boot).
  *
  * Layout expansion uses both:
  *   • CSS (styles.css)   — scaffold-level overrides
@@ -18,6 +23,17 @@
 'use strict';
 
 const LCS_MSG_CLASS   = 'lcs-messaging';
+const LCS_HOME_CLASS  = 'lcs-home';
+const LCS_NETWORK_CLASS = 'lcs-network';
+const LCS_JOBS_CLASS  = 'lcs-jobs';
+const LCS_NOTIF_CLASS = 'lcs-notifications';
+const LCS_CLASSES     = [
+  LCS_MSG_CLASS,
+  LCS_HOME_CLASS,
+  LCS_NETWORK_CLASS,
+  LCS_JOBS_CLASS,
+  LCS_NOTIF_CLASS,
+];
 const LCS_STORAGE_KEY = 'lcsEnabled';
 
 /** Set true to enable one-shot console diagnostics (silenced in production). */
@@ -86,6 +102,32 @@ function isMessagingPage() {
   return window.location.pathname.startsWith('/messaging');
 }
 
+/** Current LinkedIn page kind, derived from the URL pathname. */
+function pageKind() {
+  const p = window.location.pathname;
+  if (p.startsWith('/messaging')) return 'messaging';
+  if (p === '/' || p.startsWith('/feed')) return 'home';
+  if (p.startsWith('/mynetwork')) return 'network';
+  if (p.startsWith('/jobs')) return 'jobs';
+  if (p.startsWith('/notifications')) return 'notifications';
+  return 'other';
+}
+
+/** True once the current page's real layout has mounted (not an SPA splash). */
+function pageDomMounted(kind) {
+  switch (kind) {
+    case 'messaging':
+      return isMessagingDomMounted();
+    case 'home':
+    case 'network':
+    case 'notifications':
+    case 'jobs':
+      return !!document.querySelector('.scaffold-layout, main#workspace, main');
+    default:
+      return false;
+  }
+}
+
 /** True once the real messaging UI has mounted — NOT the SPA "Navigating to
  *  Messaging" splash. All selectors here are absent on the splash and present
  *  after the microapp boots (verified against the live page). Styling must be
@@ -125,8 +167,23 @@ function findMessagingLayout() {
 
 /* ─── scaffold expansion ──────────────────────────────────── */
 
-function expandScaffold() {
-  // Outer scaffold containers
+/**
+ * Expand the shared LinkedIn scaffold to full width.
+ *
+ * @param {{ collapseAside: boolean }} opts When true, the right aside
+ *        (ads/recommendations) is collapsed to reclaim horizontal space.
+ *        When false (Home), the aside is kept and the whole scaffold widens.
+ */
+function expandScaffold({ collapseAside }) {
+  // Outer scaffold containers (legacy .scaffold-layout + modern main / main > div)
+  const main = document.querySelector('main');
+  if (main) {
+    applyStyles(main, { 'max-width': '100%', width: '100%', 'padding-left': '0', 'padding-right': '0' });
+    if (main.firstElementChild) {
+      applyStyles(main.firstElementChild, { 'max-width': '100%', width: '100%', 'padding-left': '0', 'padding-right': '0' });
+    }
+  }
+
   document.querySelectorAll(
     '.scaffold-layout, .scaffold-layout-container, ' +
     '.scaffold-layout-container--reflow, .scaffold-layout__content-container',
@@ -138,12 +195,12 @@ function expandScaffold() {
     'box-sizing': 'border-box',
   }));
 
-  // Main content column — grows to fill space freed by collapsing the aside.
-  const main = firstMatching(
+  // Main content column — grows to fill space freed by the aside.
+  const legacyMain = firstMatching(
     '.scaffold-layout__list-detail, .scaffold-layout__list-detail-inner, ' +
     '.scaffold-layout__main, .msg__list-detail',
   );
-  applyStyles(main, {
+  applyStyles(legacyMain, {
     'max-width': '100%',
     width: '100%',
     flex: '1 1 auto',
@@ -151,6 +208,48 @@ function expandScaffold() {
     'padding-left': '0',
     'padding-right': '0',
   });
+
+  const hasScaffold = !!document.querySelector('.scaffold-layout');
+
+  // Modern layout container (grid of columns under main > div > div when NOT in .scaffold-layout)
+  if (!hasScaffold) {
+    const innerGrid = main?.firstElementChild?.firstElementChild;
+    if (innerGrid) {
+      applyStyles(innerGrid, {
+        'max-width': '100%',
+        width: '100%',
+        display: 'flex',
+        'flex-direction': 'row',
+        gap: '16px',
+      });
+
+      const children = [...innerGrid.children];
+      if (collapseAside && children.length >= 2) {
+        // Collapse right aside column
+        const lastChild = children[children.length - 1];
+        if (lastChild && (lastChild.tagName === 'ASIDE' || children.length === 3)) {
+          applyStyles(lastChild, { display: 'none' });
+        }
+      }
+
+      // Re-distribute layout columns based on visible children
+      const visibleChildren = children.filter(c => getComputedStyle(c).display !== 'none');
+      if (visibleChildren.length === 3) {
+        // Home: left rail fixed (225px), middle feed grows to fill space, right rail fixed (300px)
+        applyStyles(visibleChildren[0], { flex: '0 0 225px', width: '225px', 'max-width': '225px' });
+        applyStyles(visibleChildren[1], { flex: '1 1 0', width: 'auto', 'max-width': '100%', 'min-width': '0' });
+        applyStyles(visibleChildren[2], { flex: '0 0 300px', width: '300px', 'max-width': '300px' });
+      } else if (visibleChildren.length === 2) {
+        // Left rail fixed (280px), main content grows to fill space
+        applyStyles(visibleChildren[0], { flex: '0 0 280px', width: '280px', 'max-width': '280px' });
+        applyStyles(visibleChildren[1], { flex: '1 1 0', width: 'auto', 'max-width': '100%', 'min-width': '0' });
+      } else if (visibleChildren.length === 1) {
+        applyStyles(visibleChildren[0], { flex: '1 1 0', width: '100%', 'max-width': '100%', 'min-width': '0' });
+      }
+    }
+  }
+
+  if (!collapseAside) return;
 
   // Right aside (ads/recommendations) — collapse to reclaim horizontal space
   const aside = document.querySelector('.scaffold-layout__aside');
@@ -165,24 +264,27 @@ function expandScaffold() {
     border: 'none',
   });
 
-  // The messaging row is a CSS Grid that reserves a fixed track for the right
-  // aside. Zeroing the aside's width can't collapse a fixed grid track, so
-  // force the row to a single full-width column whenever the aside shares a
-  // grid parent with the messaging main column. Never change the parent's
-  // display — reflowing it breaks the composer's pinned height.
-  if (main && aside && main.parentElement === aside.parentElement) {
-    const display = getComputedStyle(main.parentElement).display;
+  // The content row is a CSS Grid that reserves fixed tracks for sidebars and asides.
+  // When collapsing aside, adjust grid-template-columns so main takes all reclaimed space.
+  document.querySelectorAll('.scaffold-layout__row').forEach(row => {
+    const display = getComputedStyle(row).display;
     if (display === 'grid' || display === 'inline-grid') {
-      applyStyles(main.parentElement, {
-        'grid-template-columns': 'minmax(0, 1fr)',
-        'column-gap': '0',
-      });
+      const hasSidebar = !!row.querySelector('.scaffold-layout__sidebar');
+      if (hasSidebar) {
+        // Sidebar kept (e.g. Notifications), aside collapsed
+        applyStyles(row, {
+          'grid-template-columns': '225px minmax(0, 1fr) 0px',
+          'column-gap': '16px',
+        });
+      } else {
+        // Single full-width main column
+        applyStyles(row, {
+          'grid-template-columns': 'minmax(0, 1fr)',
+          'column-gap': '0',
+        });
+      }
     }
-  }
-
-  // Legacy layout: the messaging row carries a --list-detail-aside modifier
-  document.querySelectorAll('.scaffold-layout__row[class*="--list-detail-aside"]').forEach(el =>
-    applyStyles(el, { 'grid-template-columns': 'minmax(0, 1fr)', 'column-gap': '0' }));
+  });
 }
 
 /* ─── messaging panel expansion ──────────────────────────── */
@@ -280,25 +382,101 @@ function ensureComposerVisible(scope) {
   ).forEach(el => applyStyles(el, { 'min-height': '0', 'min-width': '0' }));
 }
 
+/* ─── other page expansions ───────────────────────────────── */
+
+/** Home feed: keep the right rail and let the whole scaffold widen. Feed
+ *  cards already fill the main column, so only residual width constraints on
+ *  feed containers are cleared. */
+function expandHomeLayout() {
+  document.querySelectorAll(
+    'main, main > div, .scaffold-layout__main, [class*="feed-layout"], .feed-shared-update-v2',
+  ).forEach(el => applyStyles(el, { 'max-width': '100%', width: '100%', 'min-width': '0' }));
+}
+
+/** My Network: collapse the right rail (handled by expandScaffold) and let the
+ *  invites/suggestions list fill the freed space. */
+function expandNetworkLayout() {
+  document.querySelectorAll(
+    'main, main > div, .scaffold-layout__main, .mynetwork-content-list, [class*="mynetwork-content"]',
+  ).forEach(el => applyStyles(el, { 'max-width': '100%', width: '100%', 'min-width': '0' }));
+}
+
+/** Notifications: collapse the right rail (handled by expandScaffold) and let
+ *  the notification list fill the freed space. */
+function expandNotificationsLayout() {
+  document.querySelectorAll(
+    'main, main > div, .scaffold-layout__main, .notifications-list, [class*="notifications-list"]',
+  ).forEach(el => applyStyles(el, { 'max-width': '100%', width: '100%', 'min-width': '0' }));
+}
+
+/**
+ * Jobs: dedicated multi-pane expansion. The search row and results body fill
+ * the widened scaffold; the left results list gets a slightly larger fixed
+ * width and the right detail pane flex-grows to consume the remaining space.
+ */
+function expandJobsLayout() {
+  document.querySelectorAll(
+    'main, main > div, .jobs-search-box, #jobs-search-box, .jobs-search-results, #jobs-search-results',
+  ).forEach(el => applyStyles(el, { 'max-width': '100%', width: '100%', 'min-width': '0' }));
+
+  // Left results list — a bit wider than LinkedIn's default, capped at 460px.
+  document.querySelectorAll('.jobs-search-results-list, [class*="jobs-search-results-list"]').forEach(el =>
+    applyStyles(el, { width: '460px', 'max-width': '100%', 'min-width': '0', flex: '0 0 460px' }));
+
+  // Right detail pane grows to fill the freed space.
+  document.querySelectorAll(
+    '.jobs-search-results__detail, .jobs-search-results__body, ' +
+    '[class*="jobs-search-results__detail"], [class*="jobs-search-results__body"]',
+  ).forEach(el => applyStyles(el, { flex: '1 1 0', 'max-width': '100%', width: 'auto', 'min-width': '0' }));
+
+  // Clear internal max-widths on the job detail content itself.
+  document.querySelectorAll(
+    '.jobs-search-results__detail, .jobs-details__main-content, [class*="jobs-details__main"]',
+  ).forEach(el => applyStyles(el, { 'max-width': '100%' }));
+}
+
 /* ─── state management ────────────────────────────────────── */
 
 function applyState(enabled) {
   const html = document.documentElement;
+  const kind = pageKind();
 
-  if (!enabled) {
-    html.classList.remove(LCS_MSG_CLASS);
-    return;
-  }
+  // Reset every page-scoped class first: only the current page's stays on.
+  for (const cls of LCS_CLASSES) html.classList.remove(cls);
 
-  // Gate on the real messaging DOM being mounted: during the SPA "Navigating to
-  // Messaging" splash the class must stay OFF so LinkedIn's microapp can boot
-  // (styling the splash shell stalled it). The ticker retries until it mounts.
-  if (isMessagingPage() && isMessagingDomMounted()) {
-    html.classList.add(LCS_MSG_CLASS);
-    expandScaffold();
-    expandMessagingPanel();
-  } else {
-    html.classList.remove(LCS_MSG_CLASS);
+  if (!enabled) return;
+
+  // Gate on the real page DOM being mounted: during an SPA splash the class
+  // must stay OFF so LinkedIn's microapp can boot (styling the splash shell
+  // stalled it). The ticker retries until the page mounts.
+  if (!pageDomMounted(kind)) return;
+
+  switch (kind) {
+    case 'messaging':
+      html.classList.add(LCS_MSG_CLASS);
+      expandScaffold({ collapseAside: true });
+      expandMessagingPanel();
+      break;
+    case 'home':
+      html.classList.add(LCS_HOME_CLASS);
+      expandScaffold({ collapseAside: false });
+      expandHomeLayout();
+      break;
+    case 'network':
+      html.classList.add(LCS_NETWORK_CLASS);
+      expandScaffold({ collapseAside: true });
+      expandNetworkLayout();
+      break;
+    case 'notifications':
+      html.classList.add(LCS_NOTIF_CLASS);
+      expandScaffold({ collapseAside: true });
+      expandNotificationsLayout();
+      break;
+    case 'jobs':
+      html.classList.add(LCS_JOBS_CLASS);
+      expandScaffold({ collapseAside: true });
+      expandJobsLayout();
+      break;
   }
 }
 
@@ -310,8 +488,8 @@ function applyState(enabled) {
  *  booting microapp keeps mutating the DOM, so we trigger on DOM inactivity
  *  rather than a wall-clock guess — faster for real stalls, and it never
  *  interrupts a legitimate slow boot. */
-const RECOVERY_IDLE_MS   = 1200;   // page unchanged this long ⇒ frozen
-const RECOVERY_MIN_MS    = 800;    // min time on the route before judging
+const RECOVERY_IDLE_MS   = 2500;   // page unchanged this long ⇒ genuinely frozen
+const RECOVERY_MIN_MS    = 2000;   // min time on route before evaluating freeze
 const RECOVERY_CEILING_MS = 20000; // absolute backstop regardless of activity
 const RECOVERY_FLAG      = 'lcsRecoveryOnce';
 
@@ -359,26 +537,28 @@ function maybeRecoverStuckBoot() {
 
 let lcsDebugLoggedNav = null;
 
-/** Log once per navigation into /messaging so a failure can be diagnosed from
- *  the console instead of by guessing. */
-function logMessagingDiagnostic() {
+/** Log once per navigation into a supported page so a failure can be diagnosed
+ *  from the console instead of by guessing. */
+function logPageDiagnostic() {
   if (!LCS_DEBUG) return;
-  if (lcsDebugLoggedNav === window.location.pathname) return;
-  if (!isMessagingPage()) return;
-  lcsDebugLoggedNav = window.location.pathname;
+  const kind = pageKind();
+  if (kind === 'other') return;
+  const navKey = `${window.location.pathname}|${kind}`;
+  if (lcsDebugLoggedNav === navKey) return;
+  lcsDebugLoggedNav = navKey;
 
-  const outer = firstMatching(OUTER_MSG_SELECTORS);
-  const { listCol, detailCol, split } = findMessagingLayout();
+  const main = firstMatching('.scaffold-layout__main, .scaffold-layout__list-detail');
+  const aside = document.querySelector('.scaffold-layout__aside');
+  const jobsList = firstMatching('.jobs-search-results-list, [class*="jobs-search-results-list"]');
 
-  console.log('[LinkedSpace] messaging diagnostic', {
+  console.log('[LinkedSpace] diagnostic', {
+    page: kind,
     pathname: window.location.pathname,
-    classApplied: document.documentElement.classList.contains(LCS_MSG_CLASS),
-    domMounted: isMessagingDomMounted(),
-    outerWrapper: outer ? outer.className : null,
-    split: split ? `${split.className} [${getComputedStyle(split).display}]` : null,
-    listWidth: listCol ? Math.round(listCol.getBoundingClientRect().width) : null,
-    detailWidth: detailCol ? Math.round(detailCol.getBoundingClientRect().width) : null,
-    targetSidebar: sidebarWidth(),
+    classApplied: LCS_CLASSES.filter(c => document.documentElement.classList.contains(c)),
+    domMounted: pageDomMounted(kind),
+    mainWidth: main ? Math.round(main.getBoundingClientRect().width) : null,
+    asideWidth: aside ? Math.round(aside.getBoundingClientRect().width) : null,
+    jobsListWidth: jobsList ? Math.round(jobsList.getBoundingClientRect().width) : null,
   });
 }
 
@@ -398,7 +578,7 @@ chrome.storage.sync.get({ [LCS_STORAGE_KEY]: true }, ({ [LCS_STORAGE_KEY]: enabl
 setInterval(() => {
   applyState(currentEnabled);
   maybeRecoverStuckBoot();
-  logMessagingDiagnostic();
+  logPageDiagnostic();
 }, WATCHDOG_INTERVAL);
 
 /* ─── MutationObserver: survive SPA navigation & re-renders ── */
@@ -407,7 +587,7 @@ let debounceTimer = null;
 
 const scheduleApply = () => {
   clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => applyState(currentEnabled), 200);
+  debounceTimer = setTimeout(() => applyState(currentEnabled), 60);
 };
 
 const observer = new MutationObserver(() => {
@@ -443,7 +623,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     case 'getState':
       sendResponse({
         enabled: currentEnabled,
-        isMessaging: isMessagingPage(),
+        page: pageKind(),
       });
       break;
   }

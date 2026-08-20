@@ -2,27 +2,35 @@
    LinkedSpace – styles.css
 
    CSS handles only the outer scaffold layer.
-   All inner messaging panel expansion is done via JavaScript
-   in content.js (direct inline style injection) because
-   LinkedIn's class names rotate and its React tree can override
-   CSS with inline styles.
+   All inner panel expansion is done via JavaScript in content.js
+   (direct inline style injection) because LinkedIn's class names
+   rotate and its React tree can override CSS with inline styles.
 
-   Scoping class set by content.js:
-     html.lcs-messaging → on /messaging dedicated page
+   Scoping classes set by content.js on <html>:
+     lcs-messaging     → /messaging dedicated page
+     lcs-home          → Home feed (rail kept, everything widens)
+     lcs-network       → My Network (rail collapsed)
+     lcs-notifications → Notifications (rail collapsed)
+     lcs-jobs          → Jobs (dedicated multi-pane expansion)
 
    The floating chat overlay bubble is intentionally left untouched.
    ============================================================ */
 
 /* ----------------------------------------------------------
-   1. Scaffold outer wrapper – messaging page only
+   1. Scaffold outer wrapper – all supported pages
    Remove fixed max-width so the page fills the viewport.
    (JS also sets these as inline styles for extra specificity)
    ---------------------------------------------------------- */
 
-html.lcs-messaging .scaffold-layout,
-html.lcs-messaging .scaffold-layout-container,
-html.lcs-messaging .scaffold-layout-container--reflow,
-html.lcs-messaging .scaffold-layout__content-container {
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) main,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
+.scaffold-layout,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
+.scaffold-layout-container,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
+.scaffold-layout-container--reflow,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
+.scaffold-layout__content-container {
   max-width: 100% !important;
   width: 100% !important;
   padding-left: 0 !important;
@@ -30,8 +38,9 @@ html.lcs-messaging .scaffold-layout__content-container {
   box-sizing: border-box !important;
 }
 
-/* Main content column grows to fill space freed by the aside */
-html.lcs-messaging .scaffold-layout__main {
+/* Main content column grows to fill the viewport (or space freed by the aside) */
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
+.scaffold-layout__main {
   max-width: 100% !important;
   width: 100% !important;
   flex: 1 1 auto !important;
@@ -40,8 +49,9 @@ html.lcs-messaging .scaffold-layout__main {
   padding-right: 0 !important;
 }
 
-/* Collapse the right ads/recommendations aside */
-html.lcs-messaging .scaffold-layout__aside {
+/* Collapse the right ads/recommendations aside — pages whose layout keeps a
+   right rail out of the way. Home keeps its rail; Jobs has its own panes. */
+html:is(.lcs-messaging, .lcs-network, .lcs-notifications) .scaffold-layout__aside {
   width: 0 !important;
   min-width: 0 !important;
   max-width: 0 !important;
@@ -52,16 +62,17 @@ html.lcs-messaging .scaffold-layout__aside {
   border: none !important;
 }
 
-/* The messaging row is a CSS Grid whose grid-template-columns reserves a fixed
+/* The content row is a CSS Grid whose grid-template-columns reserves a fixed
    track for the right aside. Zeroing the aside's width can't collapse a fixed
    grid track, so squeeze the row into a single full-width column to reclaim it. */
-html.lcs-messaging .scaffold-layout__row[class*="--list-detail-aside"] {
+html:is(.lcs-messaging, .lcs-network, .lcs-notifications)
+.scaffold-layout__row[class*="--list-detail-aside"] {
   grid-template-columns: minmax(0, 1fr) !important;
   column-gap: 0 !important;
 }
 
 /* ----------------------------------------------------------
-   2. Keeps the composer (message input) visible while scrolling.
+   2. Messaging composer visibility.
    LinkedIn pins the composer by constraining the thread column's height
    and letting only the message list scroll. This permits the list region
    to shrink within that column instead of growing the whole column — min
