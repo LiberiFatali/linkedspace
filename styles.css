@@ -1,10 +1,9 @@
 /* ============================================================
    LinkedSpace – styles.css
 
-   CSS handles only the outer scaffold layer.
-   All inner panel expansion is done via JavaScript in content.js
-   (direct inline style injection) because LinkedIn's class names
-   rotate and its React tree can override CSS with inline styles.
+   CSS handles scaffold layout & overrides LinkedIn's CSS variables.
+   All inner panel expansion is also reinforced via JavaScript in
+   content.js for resilience against React re-renders.
 
    Scoping classes set by content.js on <html>:
      lcs-messaging     → /messaging dedicated page
@@ -17,28 +16,43 @@
    ============================================================ */
 
 /* ----------------------------------------------------------
+   0. Global CSS Variable Overrides
+   ---------------------------------------------------------- */
+
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) {
+  --scaffold-layout-container-max-width: 100% !important;
+  --scaffold-layout-content-max-width: 100% !important;
+}
+
+html:is(.lcs-messaging, .lcs-network, .lcs-jobs, .lcs-notifications) {
+  --scaffold-layout-aside-width: 0px !important;
+}
+
+/* ----------------------------------------------------------
    1. Scaffold outer wrapper – all supported pages
-   Remove fixed max-width so the page fills the viewport.
-   (JS also sets these as inline styles for extra specificity)
+   Remove fixed max-width and margins so page fills the viewport.
    ---------------------------------------------------------- */
 
 html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) main,
-html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
-.scaffold-layout,
-html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
-.scaffold-layout-container,
-html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
-.scaffold-layout-container--reflow,
-html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
-.scaffold-layout__content-container {
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) .scaffold-layout,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) .scaffold-layout-container,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) .scaffold-layout-container--reflow,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) .scaffold-layout__content,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) .scaffold-layout__content--is-centered,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) .scaffold-layout__content-container,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) .jobs-search-two-pane__container,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) .jobs-search-results-list__container,
+html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications) .jobs-search-box-container {
   max-width: 100% !important;
   width: 100% !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   box-sizing: border-box !important;
 }
 
-/* Main content column grows to fill the viewport (or space freed by the aside) */
+/* Main content column grows to fill viewport */
 html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
 .scaffold-layout__main {
   max-width: 100% !important;
@@ -49,9 +63,8 @@ html:is(.lcs-messaging, .lcs-home, .lcs-network, .lcs-jobs, .lcs-notifications)
   padding-right: 0 !important;
 }
 
-/* Collapse the right ads/recommendations aside — pages whose layout keeps a
-   right rail out of the way. Home keeps its rail; Jobs has its own panes. */
-html:is(.lcs-messaging, .lcs-network, .lcs-notifications) .scaffold-layout__aside {
+/* Collapse the right ads/recommendations aside */
+html:is(.lcs-messaging, .lcs-network, .lcs-notifications, .lcs-jobs) .scaffold-layout__aside {
   width: 0 !important;
   min-width: 0 !important;
   max-width: 0 !important;
@@ -62,21 +75,65 @@ html:is(.lcs-messaging, .lcs-network, .lcs-notifications) .scaffold-layout__asid
   border: none !important;
 }
 
-/* The content row is a CSS Grid whose grid-template-columns reserves a fixed
-   track for the right aside. Zeroing the aside's width can't collapse a fixed
-   grid track, so squeeze the row into a single full-width column to reclaim it. */
-html:is(.lcs-messaging, .lcs-network, .lcs-notifications)
-.scaffold-layout__row[class*="--list-detail-aside"] {
+/* Collapse fixed grid tracks for aside in grid rows */
+html:is(.lcs-messaging, .lcs-network, .lcs-notifications, .lcs-jobs)
+.scaffold-layout__row[class*="--list-detail-aside"],
+html:is(.lcs-messaging, .lcs-network, .lcs-notifications, .lcs-jobs)
+.scaffold-layout__row--list-detail {
   grid-template-columns: minmax(0, 1fr) !important;
   column-gap: 0 !important;
 }
 
+/* Jobs two-pane list & detail layout */
+html.lcs-jobs .scaffold-layout__list-detail,
+html.lcs-jobs .scaffold-layout__list-detail-inner,
+html.lcs-jobs .jobs-search-two-pane__wrapper {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+html.lcs-jobs .scaffold-layout__list,
+html.lcs-jobs .jobs-search-two-pane__left-rail {
+  width: 350px !important;
+  max-width: 350px !important;
+  flex: 0 0 350px !important;
+  min-width: 0 !important;
+}
+
+html.lcs-jobs .scaffold-layout__list-header,
+html.lcs-jobs .jobs-search-results-list__header {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  width: 100% !important;
+}
+
+html.lcs-jobs .scaffold-layout__list-container,
+html.lcs-jobs .jobs-search-results-list__list {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+}
+
+html.lcs-jobs .scaffold-layout__detail,
+html.lcs-jobs .jobs-search__job-details,
+html.lcs-jobs .jobs-search-results__detail {
+  flex: 1 1 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+html.lcs-jobs .jobs-details__main-content,
+html.lcs-jobs .job-view-layout {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
 /* ----------------------------------------------------------
-   2. Messaging composer visibility.
-   LinkedIn pins the composer by constraining the thread column's height
-   and letting only the message list scroll. This permits the list region
-   to shrink within that column instead of growing the whole column — min
-   sizes are lifted, never forced. (JS mirrors this as inline styles.)
+   2. Messaging composer visibility & micro-animation
    ---------------------------------------------------------- */
 
 html.lcs-messaging .msg-s-message-list-container {
@@ -84,12 +141,6 @@ html.lcs-messaging .msg-s-message-list-container {
   min-width: 0 !important;
 }
 
-/* ----------------------------------------------------------
-   3. Smooth micro-animation for new messages
-   ---------------------------------------------------------- */
-
-/* Scope to the dedicated messaging panel only: the floating chat-bubble popup
-   reuses `msg-s-event-listitem` and must not get this animation. */
 html.lcs-messaging .scaffold-layout__list-detail .msg-s-event-listitem,
 html.lcs-messaging .msg-s-page-layout .msg-s-event-listitem {
   animation: lcs-fadeSlide 0.18s ease both !important;
