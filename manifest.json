@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "LinkedSpace",
-  "version": "1.1.0",
-  "description": "Expand LinkedIn messaging to full-width on both sides. More space, less clutter.",
+  "version": "1.3.0",
+  "description": "Expand LinkedIn's main tabs to full width. More space, less clutter.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
