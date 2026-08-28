@@ -61,7 +61,7 @@ linkedspace/
 │   ├── screenshot_before.png
 │   └── screenshot_after.png
 ├── .gitignore
-├── LICENSE                # MIT License
+├── LICENSE                # AGPL-3.0 License
 └── README.md
 ```
 
@@ -81,4 +81,4 @@ This generates a `dist/` folder and a `linkedspace.zip` bundle.
 
 ## License
 
-This project is open-source under the [MIT License](LICENSE).
+Licensed under the [GNU Affero General Public License v3.0](LICENSE) (or any later version).
