@@ -13,9 +13,25 @@ const masterToggle = document.getElementById('masterToggle');
 const statusCard   = document.getElementById('statusCard');
 const statusText   = document.getElementById('statusText');
 
+/** Check that a tab URL belongs to LinkedIn (exact host or subdomain). */
+function isLinkedInUrl(url) {
+  if (typeof url !== 'string' || url.length === 0) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === 'linkedin.com' || host.endsWith('.linkedin.com');
+  } catch {
+    return false;
+  }
+}
+
 /** Derive the page kind from a tab URL (fallback when no content script). */
 function pageFromUrl(url) {
-  const p = new URL(url).pathname;
+  let p;
+  try {
+    p = new URL(url).pathname;
+  } catch {
+    return null;
+  }
   if (p.startsWith('/messaging')) return 'messaging';
   if (p === '/' || p.startsWith('/feed')) return 'home';
   if (p.startsWith('/mynetwork')) return 'network';
@@ -48,7 +64,7 @@ function updateStatus(page, enabled) {
 async function sendToContentScript(message) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id || !tab.url?.includes('linkedin.com')) return null;
+    if (!tab?.id || !isLinkedInUrl(tab.url)) return null;
     return await chrome.tabs.sendMessage(tab.id, message);
   } catch {
     return null; // Content script not ready – silently ignore
@@ -62,7 +78,7 @@ async function sendToContentScript(message) {
 async function currentPage() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id || !tab.url?.includes('linkedin.com')) return null;
+    if (!tab?.id || !isLinkedInUrl(tab.url)) return null;
     const response = await sendToContentScript({ action: 'getState' });
     return response?.page ?? pageFromUrl(tab.url);
   } catch {
