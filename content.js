@@ -23,10 +23,7 @@ const JOBS_LIST_WIDTH_PX = 350;
 const MSG_SIDEBAR_MAX_PX = 400;
 
 function getMessagingSidebarWidth() {
-  return Math.min(
-    MSG_SIDEBAR_MAX_PX,
-    Math.max(Math.round(window.innerWidth / 3), Math.round(window.innerWidth / 6)),
-  );
+  return Math.min(MSG_SIDEBAR_MAX_PX, Math.round(window.innerWidth / 3));
 }
 
 function pageKind() {
@@ -41,7 +38,7 @@ function pageKind() {
 
 function pageDomMounted(kind) {
   if (kind === 'messaging') {
-    return !!document.querySelector('#message-scroll-container, .msg-s-page-layout, .scaffold-layout__detail');
+    return !!document.querySelector('#message-scroll-container, .msg-s-page-layout, .scaffold-layout__detail, .scaffold-layout__list-detail, .msg__list-detail');
   }
   return !!document.querySelector('.scaffold-layout, main#workspace, main');
 }
@@ -101,8 +98,15 @@ function expandScaffold(collapseAside) {
       const display = getComputedStyle(row).display;
       if (display === 'grid' || display === 'inline-grid') {
         const hasSidebar = !!row.querySelector('.scaffold-layout__sidebar');
+        // NOTE: current LinkedIn renders the rail as .scaffold-layout__aside
+        // (e.g. messaging rows carry --list-detail-aside --has-aside), so
+        // check for it too — otherwise the row collapses to a single track
+        // with content + aside crammed into it.
+        const hasAside = !!row.querySelector('.scaffold-layout__aside');
         if (hasSidebar) {
           applyStyles(row, { 'grid-template-columns': '225px minmax(0, 1fr) 0px', 'column-gap': '16px' });
+        } else if (hasAside) {
+          applyStyles(row, { 'grid-template-columns': 'minmax(0, 1fr) 0px', 'column-gap': '0' });
         } else {
           applyStyles(row, { 'grid-template-columns': 'minmax(0, 1fr)', 'column-gap': '0' });
         }
@@ -115,15 +119,15 @@ function expandScaffold(collapseAside) {
 
 function expandMessagingPanel() {
   const outerWrapper = document.querySelector(
-    '.scaffold-layout__list-detail-inner, .scaffold-layout__list-detail, .msg-s-page-layout, .scaffold-layout__main',
+    '.msg__list-detail, .scaffold-layout__list-detail-inner, .scaffold-layout__list-detail, .msg-s-page-layout, .scaffold-layout__main',
   );
   if (!outerWrapper) return;
 
   applyStyles(outerWrapper, { 'max-width': '100%', width: '100%', 'min-width': '0' });
 
   const sidebar = getMessagingSidebarWidth();
-  const listCol = document.querySelector('.scaffold-layout__list, .msg-s-page-layout__list, .msg-conversations-container');
-  const detailCol = document.querySelector('.scaffold-layout__detail, .msg-s-page-layout__conversation-container');
+  const listCol = document.querySelector('.scaffold-layout__list, .msg-s-page-layout__list, .msg-conversations-container, [class*="msg__list"]:not(main):not([class*="list-detail"])');
+  const detailCol = document.querySelector('.scaffold-layout__detail, .msg-s-page-layout__conversation-container, [class*="msg__detail"]');
   const split = listCol?.parentElement || outerWrapper;
 
   if (split) {
@@ -240,11 +244,14 @@ function applyState(enabled) {
   const kind = pageKind();
 
   for (const cls of Object.values(LCS_CLASSES)) html.classList.remove(cls);
-  if (!enabled || !pageDomMounted(kind)) return;
+  if (!enabled) return;
 
+  // Apply the scoping class immediately, before the DOM-mount gate below,
+  // so the CSS fallback takes effect the moment React mounts the nodes.
   if (LCS_CLASSES[kind]) {
     html.classList.add(LCS_CLASSES[kind]);
   }
+  if (!pageDomMounted(kind)) return;
 
   switch (kind) {
     case 'messaging':
@@ -279,19 +286,67 @@ chrome.storage.sync.get({ [LCS_STORAGE_KEY]: true }, ({ [LCS_STORAGE_KEY]: enabl
   applyState(currentEnabled);
 });
 
-setInterval(() => applyState(currentEnabled), 1000);
+settleRefresh();
+maybeAutoReload();
 
 let debounceTimer = null;
+let lastUrl = location.href;
 const scheduleApply = () => {
+  // Same-document SPA navigation changes the URL without re-running this
+  // script — restart the settle loop and the auto-reload check so the new
+  // page gets refreshed too.
+  if (location.href !== lastUrl) {
+    lastUrl = location.href;
+    settleRefresh();
+    maybeAutoReload();
+  }
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => applyState(currentEnabled), 60);
 };
+
+// Automatic refresh: if /messaging is still narrow shortly after arrival,
+// do once what a manual refresh does — reload the page. Guarded so it can
+// never loop (once per URL per tab session) and never interrupts typing.
+function maybeAutoReload() {
+  if (pageKind() !== 'messaging' || !currentEnabled) return;
+  const key = 'lcsReloaded:' + location.href;
+  if (sessionStorage.getItem(key)) return;
+  setTimeout(() => {
+    if (pageKind() !== 'messaging' || !currentEnabled) return;
+    if (document.hidden) return;
+    const ae = document.activeElement;
+    if (ae && ae.closest('[contenteditable], input, textarea')) return;
+    const main = document.querySelector('main');
+    const w = main ? main.getBoundingClientRect().width : 0;
+    if (!main || w < window.innerWidth - 200) {
+      sessionStorage.setItem(key, '1');
+      location.reload();
+    }
+  }, 1500);
+}
+
+// Simple refresh: re-apply until the page DOM is mounted (max ~5s),
+// then stop. Covers cold loads, SPA transitions, and bfcache restores
+// without perpetual timers — the MutationObserver handles everything
+// after the layout has settled.
+function settleRefresh() {
+  clearInterval(settleRefresh.timer);
+  let tries = 0;
+  applyState(currentEnabled);
+  settleRefresh.timer = setInterval(() => {
+    if (pageDomMounted(pageKind()) || ++tries > 20) {
+      clearInterval(settleRefresh.timer);
+      settleRefresh.timer = null;
+      return;
+    }
+    applyState(currentEnabled);
+  }, 250);
+}
 
 const observer = new MutationObserver(scheduleApply);
 observer.observe(document.body, { childList: true, subtree: true });
 
 window.addEventListener('resize', scheduleApply);
-window.addEventListener('popstate', scheduleApply);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'enable') {

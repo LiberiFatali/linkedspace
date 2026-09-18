@@ -84,6 +84,53 @@ html:is(.lcs-messaging, .lcs-network, .lcs-notifications, .lcs-jobs)
   column-gap: 0 !important;
 }
 
+/* Messaging list/detail split — pure CSS fallback so full width holds even
+   when JS inline-style expansion hasn't run yet (fast cached / SPA /
+   bfcache loads with no loading bar). Mirrors content.js
+   getMessagingSidebarWidth(): min(400px, innerWidth/3). JS inline styles
+   remain the live adaptive layer on top of this. */
+html.lcs-messaging .scaffold-layout__list-detail,
+html.lcs-messaging .scaffold-layout__list-detail-inner,
+html.lcs-messaging .msg-s-page-layout,
+html.lcs-messaging .scaffold-layout__main {
+  max-width: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+html.lcs-messaging .scaffold-layout__list-detail-inner,
+html.lcs-messaging .scaffold-layout__list-detail,
+html.lcs-messaging .msg-s-page-layout {
+  column-gap: 0 !important;
+  row-gap: 0 !important;
+}
+
+html.lcs-messaging .scaffold-layout__list,
+html.lcs-messaging .msg-s-page-layout__list,
+html.lcs-messaging .msg-conversations-container {
+  width: min(400px, 33vw) !important;
+  max-width: min(400px, 33vw) !important;
+  min-width: 0 !important;
+  flex: 0 0 min(400px, 33vw) !important;
+}
+
+html.lcs-messaging .scaffold-layout__detail,
+html.lcs-messaging .msg-s-page-layout__conversation-container {
+  flex: 1 1 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+html.lcs-messaging .msg-convo-wrapper,
+html.lcs-messaging .msg-thread,
+html.lcs-messaging .msg-s-message-list-content,
+html.lcs-messaging .msg-s-message-list {
+  max-width: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
 /* Jobs two-pane list & detail layout */
 html.lcs-jobs .scaffold-layout__list-detail,
 html.lcs-jobs .scaffold-layout__list-detail-inner,

@@ -1,6 +1,6 @@
 {
   "name": "linkedspace",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Expand LinkedIn's main tabs to full width. More space, less clutter.",
   "scripts": {
     "build": "node build.js",

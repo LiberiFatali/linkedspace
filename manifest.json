@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LinkedSpace",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Expand LinkedIn's main tabs to full width. More space, less clutter.",
   "icons": {
     "16": "icons/icon16.png",
